@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Лабораторна робота №4 — Country Information</title>
+    <style>
+        body { font-family: 'Times New Roman', serif; margin: 40px; line-height: 1.6; }
+        select { padding: 5px; font-size: 16px; min-width: 250px; margin-bottom: 20px; }
+        .info-block p { margin: 8px 0; font-size: 18px; }
+        #flag { margin-top: 15px; width: 220px; border: 1px solid #ccc; display: none; }
+    </style>
+</head>
+<body>
+
+    <h1>Country Information</h1>
+
+    <select id="country-select">
+        <option value="">Оберіть країну...</option>
+    </select>
+
+    <div id="country-info" class="info-block" style="display: none;">
+        <p><strong>Країна:</strong> <span id="country-name"></span></p>
+        <p><strong>Столиця:</strong> <span id="country-capital"></span></p>
+        <p><strong>Населення:</strong> <span id="country-population"></span></p>
+        <p><strong>Регіон:</strong> <span id="country-region"></span></p>
+        <p><strong>Площа:</strong> <span id="country-area"></span> км²</p>
+        <p><strong>Валюта:</strong> <span id="country-currency"></span></p>
+        <img id="flag" src="" alt="Прапор країни">
+    </div>
+
+    <script>
+        const selectElement = document.getElementById('country-select');
+        const infoContainer = document.getElementById('country-info');
+
+        function buildFlagSvg(code) {
+            const ns = 'http://w3.org';
+            const templates = {
+                ua: ['0 0 3 2', '<rect width="3" height="1" fill="#0057B7"/><rect width="3" height="1" y="1" fill="#FFD700"/>'],
+                cl: ['0 0 3 2', '<rect width="3" height="1" fill="#fff"/><rect width="3" height="1" y="1" fill="#d52b1e"/><rect width="1" height="1" fill="#0039a6"/><polygon points="0.5,0.2 0.59,0.48 0.88,0.48 0.64,0.65 0.73,0.92 0.5,0.75 0.27,0.92 0.36,0.65 0.12,0.48 0.41,0.48" fill="#fff"/>'],
+                pl: ['0 0 8 5', '<rect width="8" height="2.5" fill="#fff"/><rect width="8" height="2.5" y="2.5" fill="#dc143c"/>'],
+                de: ['0 0 5 3', '<rect width="5" height="1" fill="#000"/><rect width="5" height="1" y="1" fill="#D00"/><rect width="5" height="1" y="2" fill="#FFCE00"/>'],
+                fr: ['0 0 3 2', '<rect width="1" height="2" fill="#002395"/><rect width="1" height="2" x="1" fill="#fff"/><rect width="1" height="2" x="2" fill="#ED2939"/>'],
+                jp: ['0 0 3 2', '<rect width="3" height="2" fill="#fff"/><circle cx="1.5" cy="1" r="0.6" fill="#bc002d"/>'],
+                gb: ['0 0 60 30', '<rect width="60" height="30" fill="#012169"/><path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" stroke-width="6"/><path d="M30,0 v30 M0,15 h60" stroke="#fff" stroke-width="10"/><path d="M30,0 v30 M0,15 h60" stroke="#C8102E" stroke-width="6"/>'],
+                us: ['0 0 19 10', '<rect width="19" height="10" fill="#B22234"/><path d="M0,1.5h19M0,3.5h19M0,5.5h19M0,7.5h19M0,9.5h19" stroke="#fff" stroke-width="0.8"/><rect width="8" height="5.4" fill="#3C3B6E"/>']
+            };
+            const item = templates[code];
+            if (!item) return '';
+            const raw = '<svg xmlns="' + ns + '" viewBox="' + item[0] + '">' + item[1] + '</svg>';
+            return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(raw);
+        }
+
+        const FALLBACK_COUNTRIES = [
+            { name: "Ukraine", capital: "Kyiv", population: 37000000, region: "Europe", area: 603500, currency: "Ukrainian hryvnia (₴)", code: "ua" },
+            { name: "Chile", capital: "Santiago", population: 19116209, region: "Americas", area: 756102, currency: "Chilean peso ($)", code: "cl" },
+            { name: "Poland", capital: "Warsaw", population: 37750000, region: "Europe", area: 312679, currency: "Polish złoty (zł)", code: "pl" },
+            { name: "Germany", capital: "Berlin", population: 83200000, region: "Europe", area: 357022, currency: "Euro (€)", code: "de" },
+            { name: "United States", capital: "Washington, D.C.", population: 331900000, region: "Americas", area: 9833517, currency: "United States dollar ($)", code: "us" },
+            { name: "United Kingdom", capital: "London", population: 67330000, region: "Europe", area: 242495, currency: "British pound (£)", code: "gb" },
+            { name: "France", capital: "Paris", population: 67750000, region: "Europe", area: 551695, currency: "Euro (€)", code: "fr" },
+            { name: "Japan", capital: "Tokyo", population: 125700000, region: "Asia", area: 377975, currency: "Japanese yen (¥)", code: "jp" }
+        ];
+
+        let useFallback = false;
+
+        async function loadCountries() {
+            try {
+                const response = await fetch('https://countriesnow.space');
+                if (!response.ok) throw new Error('API недоступне');
+                const result = await response.json();
+                const countries = result.data.sort((a, b) => a.name.localeCompare(b.name));
+
+                countries.forEach(country => {
+                    const option = document.createElement('option');
+                    option.value = country.name;
+                    option.textContent = country.name;
+                    option.dataset.flag = country.flag;
+                    option.dataset.iso2 = country.iso2;
+                    selectElement.appendChild(option);
+                });
+            } catch (error) {
+                useFallback = true;
+                FALLBACK_COUNTRIES.sort((a, b) => a.name.localeCompare(b.name)).forEach(country => {
+                    const option = document.createElement('option');
+                    option.value = country.name;
+                    option.textContent = country.name;
+                    selectElement.appendChild(option);
+                });
+            }
+        }
+
+        async function getCountryDetails(countryName, selectedOption) {
+            if (!countryName) {
+                infoContainer.style.display = 'none';
+                return;
+            }
+
+            if (useFallback) {
+                const c = FALLBACK_COUNTRIES.find(item => item.name === countryName);
+                if (!c) return;
+                renderCountry(c.name, c.capital, c.population, c.region, c.area, c.currency, buildFlagSvg(c.code), c.code);
+                return;
+            }
+
+            try {
+                const infoRes = await fetch('https://countriesnow.space', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ country: countryName })
+                });
+                const infoJson = await infoRes.json();
+
+                const popRes = await fetch('https://countriesnow.space', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ country: countryName })
+                });
+                const popJson = await popRes.json();
+
+                let population = 'Немає даних';
+                if (!popJson.error && popJson.data && popJson.data.populationCounts && popJson.data.populationCounts.length) {
+                    const counts = popJson.data.populationCounts;
+                    population = counts[counts.length - 1].value;
+                }
+
+                const d = infoJson.data || {};
+                const iso2 = (selectedOption.dataset.iso2 || '').toLowerCase();
+                const flagUrl = selectedOption.dataset.flag || (iso2 ? 'https://flagcdn.com' + iso2 + '.png' : '');
+
+                renderCountry(
+                    countryName,
+                    d.capital || 'Немає даних',
+                    population,
+                    d.dialCode ? '+' + d.dialCode + ' (тел. код)' : 'Немає даних',
+                    '—',
+                    d.currency || 'Немає даних',
+                    flagUrl,
+                    iso2
+                );
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        function renderCountry(name, capital, population, region, area, currency, flagUrl, code) {
+            document.getElementById('country-name').textContent = name;
+            document.getElementById('country-capital').textContent = capital;
+            document.getElementById('country-population').textContent = typeof population === 'number' ? population.toLocaleString('uk-UA') : population;
+            document.getElementById('country-region').textContent = region;
+            document.getElementById('country-area').textContent = typeof area === 'number' ? area.toLocaleString('uk-UA') : area;
+            document.getElementById('country-currency').textContent = currency;
+
+            const flagImg = document.getElementById('flag');
+            flagImg.onerror = function() {
+                this.onerror = null;
+                const fallbackSvg = buildFlagSvg(code);
+                if (fallbackSvg) this.src = fallbackSvg;
+            };
+
+            flagImg.src = flagUrl || buildFlagSvg(code);
+            flagImg.alt = 'Прапор ' + name;
+            flagImg.style.display = 'block';
+            infoContainer.style.display = 'block';
+        }
+
+        selectElement.addEventListener('change', (event) => {
+            const option = event.target.options[event.target.selectedIndex];
+            getCountryDetails(event.target.value, option);
+        });
+
+        loadCountries();
+    </script>
+
+</body>
+</html>
